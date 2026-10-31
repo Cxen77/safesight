@@ -190,6 +190,34 @@ Initial project code was committed and pushed. The user authorized continued
 pushes of completed steps. Datasets, weights, model exports, generated results,
 virtual environments, and local zone configurations are ignored.
 
+## Phase 6 — Fuzzy risk engine implemented and verified
+
+- [x] Implement `compute_risk` with score and band output and validated inputs.
+- [x] Create all 27 Stage 1 rules and all nine Stage 2 rules using
+  `skfuzzy.control`, triangular memberships, min/max inference, and centroid.
+- [x] Apply fire >= 0.7 -> 100, intrusion >= 8s -> floor 85, >= 3s -> floor 65.
+- [x] Verify floors do not lower a stronger fuzzy result; reject NaN, infinity,
+  out-of-range normalized inputs, and negative durations.
+- [x] Pass all five examples from the build guide.
+- [x] Discover and report raw centroid reversals. Add explicitly documented
+  monotonic grid correction and interpolation to meet the increasing-risk requirement.
+- [x] Check 27,300 grid edges and 10,000 continuous increases with no decreases.
+- [x] Pass all 18 project tests, including full rule coverage, band boundaries,
+  exact override thresholds, and monotonicity.
+- [ ] Independent expert-labelled scenario validation (not fabricated).
+- [ ] Integration with detection association, normalized inputs, and fire history.
+
+The deployed score is a calibrated interpolation of two Mamdani centroid
+surfaces. It is not raw centroid defuzzification at every continuous input.
+This distinction is recorded in the source, README, and readable rule audit.
+Raw table corrections, before stage composition: maximum hazard correction
+0.04581 on [0,1]; maximum Stage 2 correction 1.6501 on [0,100]. These are
+algorithmic knot corrections, not measured detector error or scenario accuracy.
+
+Evidence: `results/risk-self-test.log`, `results/risk-verification.json`,
+`results/risk_rules.md`, and `results/test-suite.log`.
+The committed readable audit is `docs/risk_rules.md`.
+
 ## Design questions to resolve when their phase begins
 
 - Phase 2 annotation text says "THREE boxes" but lists person + helmet and
@@ -197,6 +225,5 @@ virtual environments, and local zone configurations are ignored.
 - Phase 5 proximity convention is resolved above; use its inverse for risk.
 - Phase 6 needs numerical definitions for weighted/clipped PPE load and
   crowd/duration zone pressure before dashboard integration in Phase 7.
-- Verify continuous monotonicity of the fuzzy system numerically; monotonic
-  discrete rule labels alone do not establish monotonic centroid outputs.
+- Continuous monotonicity is addressed by the Phase 6 correction and checks.
 - Never fill evaluation results or expert scenario labels with invented values.

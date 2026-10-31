@@ -243,6 +243,55 @@ Redraw it after moving the camera or changing the demo location. The geometry
 and timers have automated tests and a two-frame CPU tracking smoke check; live
 mouse editing and physical walk-in/out observation remain to be checked by a person.
 
+## Fuzzy Safety Risk Score
+
+`src/risk.py` implements all **27 Stage 1 rules** (PPE + zone + proximity to
+hazard) and **9 Stage 2 rules** (hazard + fire evidence to risk). Rules use
+min AND, max aggregation, triangular membership functions, and centroid
+defuzzification through `skfuzzy.control`. The readable tables and current
+verification results are in [docs/risk_rules.md](docs/risk_rules.md).
+
+```powershell
+.\.venv\Scripts\python.exe src/risk.py
+.\.venv\Scripts\python.exe scripts/verify_risk.py
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+Call `compute_risk(ppe_load, zone_pressure, proximity, fire_evidence,
+unhelmeted_in_zone_seconds)` to receive `(score, band)`. The first four inputs
+must already be finite numbers in [0,1]; duration must be finite and nonnegative.
+Use `proximity = 1 - ZoneMonitor.proximity_margin`. Detection-to-PPE association,
+PPE/zone input normalization, and fire-history smoothing are integration work;
+this module does not invent those missing definitions or run either detector.
+
+Hard overrides:
+
+- Fire evidence >= 0.7: score 100, Critical; skips fuzzy computation.
+- Unhelmeted zone intrusion >= 8 seconds: score at least 85, Critical.
+- Unhelmeted zone intrusion >= 3 seconds: score at least 65, High.
+
+Continuous score bands are [0,25] Low, (25,50] Medium, (50,75] High, (75,100]
+Critical. This explicitly assigns fractional scores between the guide's integer
+boundaries. An override floor never reduces a larger fuzzy result.
+
+**Monotonic scoring:** the raw centroid surfaces have small decreasing regions
+despite the ordered rule tables. At initialization the module computes both raw
+Mamdani surfaces on a 21-knot grid per input axis, applies prefix maxima along
+each axis, and retains immutable corrected tables. Runtime uses multilinear
+interpolation. Ordered grid vertices ensure nondecreasing interpolation in
+each input; composing the two stages and override floors preserves that property.
+The deployed output is therefore a calibrated interpolation of Mamdani centroid
+results, **not an unmodified raw centroid at every continuous input**. The audit
+records the raw reversals and correction sizes. No detector test images or
+expert scenario labels are used to construct these tables.
+
+All 18 project tests pass. Additional engine verification covers 27,300 grid
+edges and 10,000 continuous increase comparisons. These are software checks,
+not safety-officer agreement or a claim about real-world detection accuracy.
+Independent expert-labelled scenarios remain pending. The first call builds
+the surfaces; subsequent calls reuse them. Reference:
+[scikit-fuzzy control-system example](https://scikit-fuzzy.readthedocs.io/en/latest/auto_examples/plot_control_system_advanced.html).
+
 ## Credits
 
 - [Tanishjain-glitch/PPE-Detection-Jetson](https://github.com/Tanishjain-glitch/PPE-Detection-Jetson): base PPE project, GPL-3.0. Retain upstream notices and license when reusing its code.

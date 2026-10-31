@@ -285,12 +285,100 @@ results, **not an unmodified raw centroid at every continuous input**. The audit
 records the raw reversals and correction sizes. No detector test images or
 expert scenario labels are used to construct these tables.
 
-All 18 project tests pass. Additional engine verification covers 27,300 grid
+The risk-engine milestone passed an 18-test suite. Additional engine verification covers 27,300 grid
 edges and 10,000 continuous increase comparisons. These are software checks,
 not safety-officer agreement or a claim about real-world detection accuracy.
 Independent expert-labelled scenarios remain pending. The first call builds
 the surfaces; subsequent calls reuse them. Reference:
 [scikit-fuzzy control-system example](https://scikit-fuzzy.readthedocs.io/en/latest/auto_examples/plot_control_system_advanced.html).
+
+## Phase 7 dashboard and alerts
+
+Start the offline simulation (no camera or detector models required):
+
+```powershell
+.\.venv\Scripts\python.exe src/app.py --demo --silent
+```
+
+Open **http://127.0.0.1:5050/**. The preview is labelled Demo simulation and
+cycles through safe, PPE/zone, fire-evidence, latch-clearing, and crowd scenes.
+Its events and snapshots live under `results/demo/`, separate from real logs.
+Simulation FPS and latency describe the simulation, not model performance.
+Remove `--silent` to enable the laptop alert sound. The current preview was
+launched with `--silent` for development review.
+
+The dashboard provides an MJPEG feed, score/band, input bars, processing metrics,
+people/zone counts, and ten recent events with snapshot links. It adapts to
+desktop and mobile, includes keyboard-focusable table scrolling, and works
+without external fonts or network assets. Pause display stops browser updates
+only; detection, alerts, and logging continue. Hidden pages suspend browser
+polling/streaming. Missing, stale, failed, or hung requests show an unavailable
+score rather than a healthy Low state.
+
+### Approved normalization
+
+The user explicitly approved these definitions for the live pipeline:
+
+- `ppe_load = min(1, (2 * missing_helmet_people + missing_vest_people) / (3 * people))`;
+  no people gives 0.
+- `zone_pressure = 0.5 * min(crowd_count / 2, 1) + 0.5 * min(longest_intrusion_seconds / 5, 1)`;
+  no intruders gives 0.
+- `proximity = 1 - safe_margin` from the zone monitor.
+- `fire_evidence` is the maximum confidence from the latest ten fire checks.
+  Fire checks run on the first frame and every ten frames afterward.
+
+Each equipment detection is assigned to at most one compatible person's body
+region. Helmet/head centres must be in the upper body; vest centres must be in
+the torso. At least half the equipment box must overlap the person. This is a
+geometric heuristic, not a validated association model; occlusion, carried PPE,
+and overlapping people can still produce mistakes. Missing helmet evidence
+contributes to PPE load, but the bare-head duration override requires a detected
+head with no associated helmet while inside the zone. It is not inferred solely
+from a missing helmet detection. Missing tracking observations reset observed
+intrusion timers and cannot count toward confirming or clearing an alert.
+
+### Alert behavior
+
+Risk appears immediately, with Confirming alert while the score is at least
+High for less than one second. The buzzer and event qualify after **one continuous
+second at High or Critical**; moving between those levels retains the debounce
+timer. A Critical alert latches once confirmed. It clears only after **three
+continuous seconds below High**. High interruptions or unknown observations reset
+that clearing timer. One event is logged per alarm episode, plus one for a later
+Critical escalation. Repeated identical frames do not spam events or outputs.
+
+Each event writes a JPEG and a CSV row with timestamp, band, score, four inputs,
+and cause. Real output is `results/events.csv` and `results/snapshots/`. UTC
+timestamps and unique filenames prevent collisions. Recent history survives
+restart; snapshots are served only from the configured snapshot directory.
+
+`AlertDriver(hardware=True)` uses Jetson.GPIO BOARD pin 12 for the buzzer and
+pin 16 for the LED. It changes outputs only on level changes and cleans up on
+shutdown. This path has mock tests only; physical wiring remains untested.
+
+### Live pipeline (models still required)
+
+Once both trained models and the real camera-zone polygon exist:
+
+```powershell
+.\.venv\Scripts\python.exe src/app.py --source 0 --device cpu
+```
+
+Live mode refuses missing model/zone files. It uses tracked PPE detections each
+frame, time-sliced fire checks, zone geometry, approved signals, fuzzy scoring,
+debounce/latching, logging, and snapshots. CPU is the default to avoid competing
+with ongoing GPU training; use `--device 0` when the GPU is available. The live
+camera pipeline has contract tests using model/capture doubles. Full real-model
+camera verification remains pending trained fire/PPE weights and zone setup.
+Decision latency measures frame acquisition through the risk computation;
+processing FPS reflects successive processed frames. Phase 8 benchmarking is
+still required before reporting end-to-end performance.
+
+Routes: `/`, `/api/state`, `/video_feed`, `/snapshots/<filename>`.
+All **31 tests pass**, including debounce/latch boundaries, snapshot/CSV
+consistency, output change suppression, signal normalization, fire scheduling,
+route isolation, and failure states. Browser review covered 1280px/375px layouts,
+pause behavior, and keyboard table scrolling. See [dashboard design](docs/dashboard-design.md).
 
 ## Credits
 

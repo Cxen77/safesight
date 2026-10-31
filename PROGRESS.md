@@ -121,14 +121,14 @@ preparation continued at the user's request without marking that gate complete.
 - [x] Start `scripts/evaluate_when_ready.py` to evaluate once after successful
   training completion; it stops if training reports failure or interruption.
 
-The first epoch has completed, and the second is running on the RTX 4060.
+Training continues on the RTX 4060; the latest Phase 7 check saw epoch 3 running.
 Training progress files contain validation metrics, not final test accuracy.
 The test report is not generated until training completes and test validation runs.
 
 Controller stages are recorded in `results/baseline-setup.json`; epoch progress
 will appear in `results/ppe-training-status.json` once training begins. Logs:
 `results/public-baseline.log` and `results/public-baseline-errors.log`.
-No accuracy numbers have been measured or reported yet. Do not launch a
+No final test accuracy numbers have been measured or reported yet. Do not launch a
 second controller while the recorded process is active.
 The evaluation watcher has its own `results/post-training.pid`,
 `results/post-training-status.json`, and `results/post-training.log`.
@@ -223,7 +223,43 @@ The committed readable audit is `docs/risk_rules.md`.
 - Phase 2 annotation text says "THREE boxes" but lists person + helmet and
   explicitly excludes head; confirm the intended two-box policy.
 - Phase 5 proximity convention is resolved above; use its inverse for risk.
-- Phase 6 needs numerical definitions for weighted/clipped PPE load and
-  crowd/duration zone pressure before dashboard integration in Phase 7.
+- Phase 7 normalization is approved by the user and documented below.
 - Continuous monotonicity is addressed by the Phase 6 correction and checks.
 - Never fill evaluation results or expert scenario labels with invented values.
+
+## Phase 7 — Dashboard, alerts, and pipeline implemented
+
+- [x] Obtain explicit user approval for PPE weighting and zone-pressure formulas.
+- [x] Implement one-second >=High debounce and three-second below-High Critical clearing.
+- [x] Log one event per episode and one further event on Critical escalation.
+- [x] Add change-only laptop sound and GPIO BOARD 12/16 output paths (GPIO mock-tested).
+- [x] Save event snapshots and CSV rows; restore ten recent events on restart.
+- [x] Associate PPE geometrically; count missing-helmet/vest evidence per person;
+  require observed bare head for duration overrides.
+- [x] Use PPE tracking every frame and fire detection first/every tenth frame,
+  with a ten-check maximum-confidence history.
+- [x] Wire zones, normalized signals, fuzzy scores, policy, outputs, and storage
+  into the live worker. Verify model scheduling and module contracts with doubles.
+- [x] Build responsive offline dashboard, MJPEG, JSON state, and snapshot routes.
+- [x] Add explicit starting/unknown/error/stale states and request timeouts.
+- [x] Add pause-display behavior that leaves monitoring and recording running.
+- [x] Provide labelled synthetic demo, isolated under `results/demo/`.
+- [x] Pass all 31 tests and browser checks at desktop/mobile widths.
+- [x] Verify an actual demo snapshot URL returns HTTP 200 image/jpeg.
+- [ ] Full live camera test with both trained weights and an actual zone.
+- [ ] Real Jetson GPIO output verification.
+
+The demo is running at http://127.0.0.1:5050/ with sound disabled. It uses no
+camera, no detector models, and no frozen images. Live mode refuses missing
+weights/zone configuration. Its first-frame/ten-frame fire schedule was verified
+over eleven frames using controlled model doubles. Snapshot persistence,
+debounce, latching, and fault handling have independent tests.
+
+Approved formulas: PPE = (2*missing helmets + missing vests)/(3*people), capped
+at 1 and zero for an empty scene. Zone = 0.5*min(crowd/2,1) +
+0.5*min(longest intrusion/5,1), zero for no intruders. Equipment association
+is a geometric heuristic; real scene and occlusion validation remain pending.
+
+Evidence: `results/test-suite.log`, `results/demo/events.csv`, demo snapshots,
+`results/dashboard-desktop.jpg`, and `results/dashboard-mobile.jpg`.
+The previews are synthetic UI checks, not detector accuracy/FPS measurements.

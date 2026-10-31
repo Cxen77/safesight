@@ -121,9 +121,9 @@ preparation continued at the user's request without marking that gate complete.
 - [x] Start `scripts/evaluate_when_ready.py` to evaluate once after successful
   training completion; it stops if training reports failure or interruption.
 
-As of the latest check, the first epoch is running on the RTX 4060. No completed
-epoch or test accuracy is claimed at that check. The report is not generated
-until training completes and test validation actually runs.
+The first epoch has completed, and the second is running on the RTX 4060.
+Training progress files contain validation metrics, not final test accuracy.
+The test report is not generated until training completes and test validation runs.
 
 Controller stages are recorded in `results/baseline-setup.json`; epoch progress
 will appear in `results/ppe-training-status.json` once training begins. Logs:
@@ -162,12 +162,39 @@ Data preparation evidence: `data/dataset_fire/preparation_manifest.json` and
 invalid files; those files are excluded from the prepared dataset rather than
 modified. Source counts and prepared counts therefore differ intentionally.
 
+## Phase 5 — Zone geometry implemented
+
+- [x] Add normalized polygon editor (left add, right undo, Enter save, Escape cancel).
+- [x] Reject invalid, degenerate, and self-intersecting polygons.
+- [x] Add tracked-person feet tests, monotonic intrusion timers, and crowd counts.
+- [x] Reset timers when a person leaves or disappears from detections.
+- [x] Define safe margin: 0 inside/on boundary; linear distance outside, capped
+  at 1 beyond 15% frame width; no people means margin 1.
+- [x] Test resolution scaling, boundary inclusion, durations, crowd count,
+  invalid inputs, and safe-margin behavior. All 12 project tests pass.
+- [x] Run a two-frame CPU check with SH17 + ByteTrack: four stable person IDs,
+  two intruders, and increasing intrusion timers in the example polygon.
+- [x] Install and record the tracker dependency `lap`.
+- [ ] Observe the live zone editor and physical walk-in/out demo at the actual site.
+
+The pipeline risk input will be `proximity = 1 - proximity_margin`. Recorded
+video timers use processing wall time, not source media timestamps. Redraw the
+polygon whenever the camera moves or the demonstration site changes.
+Smoke-check evidence: `results/zones-tracking-smoke.json` (functional check,
+not a detector accuracy or performance benchmark).
+
+## GitHub
+
+Repository: https://github.com/Cxen77/safesight, branch `main`.
+Initial project code was committed and pushed. The user authorized continued
+pushes of completed steps. Datasets, weights, model exports, generated results,
+virtual environments, and local zone configurations are ignored.
+
 ## Design questions to resolve when their phase begins
 
 - Phase 2 annotation text says "THREE boxes" but lists person + helmet and
   explicitly excludes head; confirm the intended two-box policy.
-- Phase 5 proximity descriptions disagree about whether inside distance means
-  safer or riskier. Define one consistent safe-margin convention before coding.
+- Phase 5 proximity convention is resolved above; use its inverse for risk.
 - Phase 6 needs numerical definitions for weighted/clipped PPE load and
   crowd/duration zone pressure before dashboard integration in Phase 7.
 - Verify continuous monotonicity of the fuzzy system numerically; monotonic

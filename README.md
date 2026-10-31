@@ -207,6 +207,42 @@ are checked; related video frames and recompressed duplicates may remain.
 Fire-model training is a later step. Preparation does not start a second GPU
 training job alongside the running PPE baseline and does not measure accuracy.
 
+## Zone editor and monitor
+
+Draw the danger-zone polygon using the actual camera view at the demo location:
+
+```powershell
+.\.venv\Scripts\python.exe src/zones.py --draw --source 0
+```
+
+Left click adds a corner, right click removes the last corner, Enter saves, and
+Escape cancels. Saving creates local `src/zones.json` (ignored by Git) and
+`results/zone_preview.png`. Invalid, degenerate, or self-intersecting polygons
+are rejected. A generic example is included at `config/zones.example.json`.
+
+Run the live monitor with the pretrained SH17 weights while baseline training
+is underway, or use `models/ppe_best.pt` once training finishes:
+
+```powershell
+.\.venv\Scripts\python.exe src/zones.py --source 0 --weights models/sh17_yolov8n.pt
+```
+
+The monitor tracks each person's bottom-centre point, reports the IDs inside,
+continuous intrusion durations, crowd count, and a safe proximity margin once
+per second. Press q in the window to stop. Durations use monotonic wall-clock
+time; recorded-video playback does not use original media timestamps.
+
+`proximity_margin` is **0 inside/on the zone boundary**, rising linearly to **1
+at least 15% of frame width outside**. With no people it is 1. The future risk
+engine receives `proximity = 1 - proximity_margin`. This resolves the guide's
+conflicting inside-distance descriptions using one consistent safety convention.
+Leaving or disappearing from detections resets the person's intrusion timer.
+
+Coordinates are normalized, so resizing the same view preserves the zone.
+Redraw it after moving the camera or changing the demo location. The geometry
+and timers have automated tests and a two-frame CPU tracking smoke check; live
+mouse editing and physical walk-in/out observation remain to be checked by a person.
+
 ## Credits
 
 - [Tanishjain-glitch/PPE-Detection-Jetson](https://github.com/Tanishjain-glitch/PPE-Detection-Jetson): base PPE project, GPL-3.0. Retain upstream notices and license when reusing its code.

@@ -20,3 +20,4 @@ weights/
 .env.*
 !.env.example
 *.log
+src/zones.json

@@ -57,6 +57,7 @@ def write_final_numbers(machine):
         lines += ["## Expert scenarios", "", f"Scenarios evaluated: {data['scenario_count']}",
                   f"Expert band agreement: {agreement}",
                   f"Fuzzy-policy latency median / p95: {data['latency_median_ms']:.3f} / {data['latency_p95_ms']:.3f} ms",
+                  f"Measured on: {data['machine']}",
                   ""]
     else:
         lines += ["## Expert scenarios", "", "Not measured: needs expert-reviewed scenario rows.", ""]
@@ -87,7 +88,7 @@ def sha256(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def run_scenarios(path):
+def run_scenarios(path, machine):
     from risk import compute_risk, get_engine
     if not path.is_file():
         raise FileNotFoundError(f"Scenario CSV is missing: {path}")
@@ -134,7 +135,7 @@ def run_scenarios(path):
             "expected_band", "match", "latency_ms"))
         writer.writeheader()
         writer.writerows(outputs)
-    result = {"date": measured_at(), "input": str(path.resolve()),
+    result = {"date": measured_at(), "machine": machine, "input": str(path.resolve()),
               "input_sha256": sha256(path),
               "scenario_count": len(rows), "expert_label_count": labelled,
               "band_agreement": agree / labelled if labelled else None,
@@ -220,6 +221,28 @@ def main():
     args = parser.parse_args()
     if args.seconds <= 0 or not math.isfinite(args.seconds):
         parser.error("--seconds must be positive and finite")
+    if args.all:
+        if args.video is None or args.zones is None:
+            parser.error("--all requires --video and --zones")
+        for path in (args.video, args.zones, args.scenario_file):
+            if not path.is_file():
+                parser.error(f"--all requires an existing file: {path}")
+        try:
+            with args.scenario_file.open(newline="", encoding="utf-8-sig") as stream:
+                rows = list(csv.DictReader(stream))
+        except OSError as error:
+            parser.error(f"Cannot read scenario file: {error}")
+        if not rows or any(not (row.get("expected_band") or "").strip() for row in rows):
+            parser.error("--all requires at least one scenario and an expert expected_band for each row")
+        import cv2
+        capture = cv2.VideoCapture(str(args.video))
+        if not capture.isOpened():
+            parser.error(f"Cannot open video: {args.video}")
+        source_fps = capture.get(cv2.CAP_PROP_FPS)
+        source_frames = capture.get(cv2.CAP_PROP_FRAME_COUNT)
+        capture.release()
+        if not math.isfinite(source_fps) or source_fps <= 0 or source_frames / source_fps < args.seconds:
+            parser.error(f"--all needs at least {args.seconds:g} seconds of valid video")
     try:
         if args.map or args.all:
             run_maps(args.device)
@@ -228,7 +251,7 @@ def main():
                 parser.error("--speed and --all require --video and --zones")
             run_speed(args.video.resolve(), args.zones.resolve(), args.seconds, args.machine, args.device)
         if args.scenarios or args.all:
-            run_scenarios(args.scenario_file.resolve())
+            run_scenarios(args.scenario_file.resolve(), args.machine)
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         parser.exit(2, f"Evaluation failed: {error}\n")
 

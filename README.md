@@ -203,7 +203,7 @@ The original D-Fire data must also be downloaded and prepared before fire-model
 training. Dataset availability and download URLs may change over time.
 
 Fire training is queued to start only after the PPE run and PPE test evaluation
-finish. It uses the same CUDA GPU, 640-pixel images, batch 8, up to 60 epochs,
+finish. It uses the same CUDA GPU, 640-pixel images, batch 8, up to 50 epochs,
 and patience 15. Queue status is in `results/fire-queue-status.json`; fire
 training status is in `results/fire-training-status.json`. It will verify the
 frozen D-Fire split before producing `results/fire_eval.md` and

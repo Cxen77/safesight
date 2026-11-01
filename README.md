@@ -185,7 +185,7 @@ with:
 
 ```powershell
 py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-gpu-lock.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-gpu-lock.txt --extra-index-url https://download.pytorch.org/whl/cu128
 .\.venv\Scripts\python.exe scripts/download_datasets.py --dataset sh17
 .\.venv\Scripts\python.exe src/dataset_tools.py merge --a data/sh17 --a-yaml config/sh17-classes.yaml --out data/ppe_public --rename safety-vest:vest --link-images
 .\.venv\Scripts\python.exe src/dataset_tools.py split --data data/ppe_public --out data/dataset_ppe --frozen data/splits_frozen/ppe --link-images

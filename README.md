@@ -210,6 +210,12 @@ frozen D-Fire split before producing `results/fire_eval.md` and
 `results/fire_eval.json`. Do not start another GPU job while that queue or run is
 active.
 
+After both test reports exist, `scripts/publish_after_training.py` stages the
+two final inference weights, measured reports, confusion matrices, and final
+summary to GitHub. It will not publish optimizer checkpoints beyond the
+resume checkpoint already included. SH17-derived weights retain the dataset's
+CC BY-NC-SA 4.0 attribution and noncommercial/share-alike terms; see Credits.
+
 The optional post-training evaluator script waits for successful completion,
 verifies frozen test hashes, and calls `src/train_report.py` once. Start it after
 training has started with `python scripts/evaluate_when_ready.py` if you want

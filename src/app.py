@@ -36,8 +36,9 @@ class Settings:
 
 
 class SafetyPipeline:
-    def __init__(self, settings):
+    def __init__(self, settings, frame_callback=None):
         self.settings = settings
+        self.frame_callback = frame_callback
         output = settings.output_dir or (ROOT / "results/demo" if settings.demo else ROOT / "results")
         self.store, self.policy = EventStore(output), AlertPolicy()
         self.condition, self.stop_event = threading.Condition(), threading.Event()
@@ -155,6 +156,8 @@ class SafetyPipeline:
                 cap = cv2.VideoCapture(int(self.settings.source) if self.settings.source.isdecimal() else self.settings.source)
                 if not cap.isOpened():
                     raise RuntimeError("Cannot open camera/video source")
+                if self.frame_callback:
+                    self.frame_callback({"status": "pipeline_ready"})
             while not self.stop_event.is_set():
                 tick = time.perf_counter()
                 if self.settings.demo:
@@ -186,6 +189,9 @@ class SafetyPipeline:
                         monitor.update([], frame.shape)
                         self.policy.interrupt_observation()
                         self.publish(frame=frame, status="warming", error="Waiting for stable person tracking")
+                        if self.frame_callback:
+                            self.frame_callback({"status": "warming", "latency_ms": None,
+                                                 "band": None, "score": None})
                         frame_number += 1
                         if self.settings.max_frames and frame_number >= self.settings.max_frames:
                             break
@@ -208,8 +214,8 @@ class SafetyPipeline:
                     frame = detection.plot()
                     cv2.polylines(frame, [monitor.polygon(frame.shape).astype(np.int32)], True, (25,128,220), 2)
                 score, band = compute_risk(**values, unhelmeted_in_zone_seconds=bare_seconds)
-                latency = (time.perf_counter()-tick)*1000
                 decision = self.policy.update(score, band)
+                latency = (time.perf_counter()-tick)*1000
                 driver.set_level(decision.output_level)
                 color = {"Low":(45,105,30),"Medium":(20,105,130),"High":(20,70,145),"Critical":(45,45,150)}[decision.band]
                 cv2.rectangle(frame, (0,frame.shape[0]-42), (frame.shape[1],frame.shape[0]), color, -1)
@@ -223,6 +229,9 @@ class SafetyPipeline:
                     raw_score=score, raw_band=band, fps=fps, latency_ms=latency, people=people, crowd_count=crowd,
                     cause=cause, latched=decision.latched, pending=decision.pending,
                     output_level=decision.output_level, detectors_active=not self.settings.demo, **values)
+                if self.frame_callback:
+                    self.frame_callback({"status": "active", "latency_ms": latency,
+                                         "band": decision.band, "score": decision.score})
                 frame_number += 1
                 if self.settings.max_frames and frame_number >= self.settings.max_frames:
                     break

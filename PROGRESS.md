@@ -121,12 +121,13 @@ preparation continued at the user's request without marking that gate complete.
 - [x] Start `scripts/evaluate_when_ready.py` to evaluate once after successful
   training completion; it stops if training reports failure or interruption.
 
-Training stopped after three completed epochs. A later epoch had started, but no
-new resumable checkpoint was saved. The saved `last.pt` is preserved at
-`checkpoints/ppe-baseline-resume.pt` and is backed up in GitHub. The prior
-controller did not capture a useful underlying failure detail. This remains an
-unfinished baseline, not a trained final model. No test report or test accuracy
-is available.
+The first run stopped after three completed epochs; the later partial epoch did
+not save a checkpoint and its controller did not capture a useful failure
+detail. The epoch-3 checkpoint is preserved at
+`checkpoints/ppe-baseline-resume.pt` and backed up in GitHub. Training resumed
+from it on 2026-11-01; inspect the current status JSON and resume log for the
+latest epoch. This remains unfinished until the successful-best checkpoint and
+one-time test evaluation are recorded.
 
 Controller stages are recorded in `results/baseline-setup.json`; epoch progress
 will appear in `results/ppe-training-status.json` once training begins. Logs:
@@ -142,7 +143,7 @@ YOLO uses the nonfrozen working test copy for its cache files.
 
 ## Phase 4 — Fire dataset preparation
 
-Prepared while the PPE run continues; no second GPU training job was launched.
+Prepared during the initial PPE run; no second GPU training job was launched.
 
 - [x] Add `src/prepare_fire.py` with whole-pair quarantine for invalid labels.
 - [x] Preserve source split assignments and the declared IDs: 0 smoke, 1 fire.
@@ -159,6 +160,8 @@ Prepared while the PPE run continues; no second GPU training job was launched.
   no exact cross-split image duplicates remain.
 - [ ] Train the fire model after the PPE run and evaluation finish.
 - [ ] Evaluate fire/smoke performance and record measured values.
+- [x] Add a fire trainer, frozen-test evaluator, and queue that waits for PPE
+  training and evaluation before using the shared GPU.
 
 Data preparation evidence: `data/dataset_fire/preparation_manifest.json` and
 `results/fire-preparation.log`, `results/fire-split-verification.json`, and
@@ -209,7 +212,7 @@ virtual environments, and local zone configurations are ignored.
 - [x] Pass all 18 project tests, including full rule coverage, band boundaries,
   exact override thresholds, and monotonicity.
 - [ ] Independent expert-labelled scenario validation (not fabricated).
-- [ ] Integration with detection association, normalized inputs, and fire history.
+- [x] Integration with detection association, normalized inputs, and fire history.
 
 The deployed score is a calibrated interpolation of two Mamdani centroid
 surfaces. It is not raw centroid defuzzification at every continuous input.
@@ -253,11 +256,12 @@ The committed readable audit is `docs/risk_rules.md`.
 - [ ] Full live camera test with both trained weights and an actual zone.
 - [ ] Real Jetson GPIO output verification.
 
-The demo is running at http://127.0.0.1:5050/ with sound disabled. It uses no
-camera, no detector models, and no frozen images. Live mode refuses missing
-weights/zone configuration. Its first-frame/ten-frame fire schedule was verified
-over eleven frames using controlled model doubles. Snapshot persistence,
-debounce, latching, and fault handling have independent tests.
+The demo was reviewed at http://127.0.0.1:5050/ with sound disabled. It uses no
+camera, no detector models, and no frozen images. The demo server is stopped
+while model training runs. Live mode refuses missing weights/zone configuration.
+Its first-frame/ten-frame fire schedule was verified over eleven frames using
+controlled model doubles. Snapshot persistence, debounce, latching, and fault
+handling have independent tests.
 
 Approved formulas: PPE = (2*missing helmets + missing vests)/(3*people), capped
 at 1 and zero for an empty scene. Zone = 0.5*min(crowd/2,1) +
@@ -267,3 +271,22 @@ is a geometric heuristic; real scene and occlusion validation remain pending.
 Evidence: `results/test-suite.log`, `results/demo/events.csv`, demo snapshots,
 `results/dashboard-desktop.jpg`, and `results/dashboard-mobile.jpg`.
 The previews are synthetic UI checks, not detector accuracy/FPS measurements.
+The demo server is currently stopped while model training runs.
+
+## Phase 8 — Measurement tools prepared; real results pending
+
+- [x] Add `src/evaluate.py` modes for frozen-set detector maps, full-pipeline
+  video speed, expert scenarios, and combined reporting.
+- [x] Add the scenario CSV header template without fabricated rows or labels.
+- [x] Add a measured fire trainer, frozen-test report, and a single-GPU queue.
+- [ ] Complete resumed PPE training and its one-time frozen-test evaluation.
+- [ ] Complete queued fire training and its one-time frozen-test evaluation.
+- [ ] Measure full pipeline on at least 60 seconds of video from a camera with
+  a matching zone polygon; label the laptop/device used.
+- [ ] Collect 30 scenario inputs and expected bands from a safety expert, then
+  calculate agreement. No scenario labels are currently available.
+- [ ] Recheck actual-site zones, live camera, and physical Jetson GPIO when the
+  camera/board are available.
+
+The full current-project closeout therefore depends on recorded video, expert
+scenario labels, and hardware/site access. Do not invent those measurements.

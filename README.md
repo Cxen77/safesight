@@ -189,6 +189,8 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe scripts/download_datasets.py --dataset sh17
 .\.venv\Scripts\python.exe src/dataset_tools.py merge --a data/sh17 --a-yaml config/sh17-classes.yaml --out data/ppe_public --rename safety-vest:vest --link-images
 .\.venv\Scripts\python.exe src/dataset_tools.py split --data data/ppe_public --out data/dataset_ppe --frozen data/splits_frozen/ppe --link-images
+.\.venv\Scripts\python.exe scripts/download_datasets.py --dataset dfire
+.\.venv\Scripts\python.exe src/prepare_fire.py --source data/dfire/dataset --out data/dataset_fire --frozen data/splits_frozen/fire --link-images
 New-Item -ItemType Directory -Force results/ppe_public_baseline/weights
 Copy-Item checkpoints/ppe-baseline-resume.pt results/ppe_public_baseline/weights/last.pt
 .\.venv\Scripts\python.exe src/train.py --resume results/ppe_public_baseline/weights/last.pt
@@ -199,6 +201,14 @@ model. The saved checkpoint reports three completed epochs. After training
 finishes, the existing evaluator will validate the untouched frozen test split.
 The original D-Fire data must also be downloaded and prepared before fire-model
 training. Dataset availability and download URLs may change over time.
+
+Fire training is queued to start only after the PPE run and PPE test evaluation
+finish. It uses the same CUDA GPU, 640-pixel images, batch 8, up to 60 epochs,
+and patience 15. Queue status is in `results/fire-queue-status.json`; fire
+training status is in `results/fire-training-status.json`. It will verify the
+frozen D-Fire split before producing `results/fire_eval.md` and
+`results/fire_eval.json`. Do not start another GPU job while that queue or run is
+active.
 
 The optional post-training evaluator script waits for successful completion,
 verifies frozen test hashes, and calls `src/train_report.py` once. Start it after
@@ -379,6 +389,27 @@ restart; snapshots are served only from the configured snapshot directory.
 `AlertDriver(hardware=True)` uses Jetson.GPIO BOARD pin 12 for the buzzer and
 pin 16 for the LED. It changes outputs only on level changes and cleans up on
 shutdown. This path has mock tests only; physical wiring remains untested.
+
+## Phase 8 measurements
+
+`src/evaluate.py` provides the guide's three measurement modes. Run it only
+after both model trainings and frozen-test evaluations finish:
+
+```powershell
+.\.venv\Scripts\python.exe src/evaluate.py --map
+.\.venv\Scripts\python.exe src/evaluate.py --speed --video path\to\recorded-test.mp4 --zones path\to\site-zones.json --machine "RTX 4060 laptop"
+.\.venv\Scripts\python.exe src/evaluate.py --scenarios --scenario-file scenarios\scenarios.csv
+```
+
+The speed run requires at least 60 seconds of recorded video and a polygon for
+that camera view. It measures the full application pipeline and excludes model
+load time; it does not measure physical camera or Jetson performance. The
+scenario CSV header is in `scenarios/template.csv`. Add 30 real situations with
+expert-selected bands before running that mode. Do not fill it with invented
+labels. The scenario mode reports agreement only for rows with expert bands;
+fuzzy-policy latency excludes neural inference. `--all` runs the three modes in
+order when all required inputs are available. Measured results are written to
+`results/final_numbers.md`; missing measurements remain explicitly unreported.
 
 ### Live pipeline (models still required)
 

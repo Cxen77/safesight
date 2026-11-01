@@ -43,6 +43,9 @@ def main():
         if status.get("state") == "complete":
             break
         time.sleep(30)
+    if not (ROOT / "results/final_numbers.md").is_file():
+        update("writing_summary")
+        subprocess.run([sys.executable, "-u", "src/evaluate.py", "--map"], cwd=ROOT, check=True)
     missing = [path for path in ARTIFACTS if not (ROOT / path).is_file()]
     if missing:
         update("needs_attention", missing_artifacts=missing)

@@ -5,6 +5,8 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import subprocess
+import sys
 
 import torch
 from ultralytics import YOLO
@@ -50,6 +52,8 @@ def main():
         temp.replace(status_file)
 
     try:
+        subprocess.run([sys.executable, str(ROOT / "scripts/verify_fire_split.py")],
+                       cwd=ROOT, check=True)
         weights = args.resume or ROOT / "models/yolov8n.pt"
         model = YOLO(str(weights))
         if not args.resume and len(model.names) != 80:

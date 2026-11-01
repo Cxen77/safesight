@@ -150,20 +150,21 @@ folder, so YOLO cache files cannot modify the snapshot. Before test evaluation,
 run `scripts/verify_ppe_split.py` to check image and label hashes in both copies.
 Do not tune on frozen test results.
 
-The background controller `scripts/run_public_baseline.ps1` is already started.
-It installs pinned CUDA PyTorch wheels from the official PyTorch index, checks
-GPU computation, saves `requirements-gpu-lock.txt`, then runs `src/train.py` on
-the RTX 4060. Settings: 640 pixels, batch 8, up to 60 epochs, patience 15,
-two data workers, seed 42, and no RAM image cache. Windows training uses a main
-guard. Reference: [Ultralytics training](https://docs.ultralytics.com/modes/train/)
-and [PyTorch GPU setup](https://pytorch.org/get-started/locally/).
+The public baseline started on an RTX 4060 with settings of 640 pixels, batch 8,
+up to 60 epochs, patience 15, two data workers, and no RAM image cache. The run
+was interrupted after three completed epochs; it has not been evaluated on the
+reserved test split. Windows training uses a main guard. Reference:
+[Ultralytics training](https://docs.ultralytics.com/modes/train/) and
+[PyTorch GPU setup](https://pytorch.org/get-started/locally/).
 
 Progress files (do not start a duplicate controller):
 
 - `results/baseline-setup.json`: GPU installation / training stage.
 - `results/public-baseline.log` and `results/public-baseline-errors.log`: controller output.
 - `results/ppe-training-status.json`: epoch and validation progress once training starts.
-- `results/ppe_public_baseline/weights/`: training checkpoints.
+- `results/ppe_public_baseline/weights/`: local training checkpoints.
+- `checkpoints/ppe-baseline-resume.pt`: checkpoint saved after epoch 3, backed
+  up in this repository so the run can be resumed after local cleanup.
 - `models/ppe_best.pt`: copied only after a successful completed run.
 
 If interrupted after a checkpoint is saved, resume from the project directory:
@@ -175,14 +176,37 @@ If interrupted after a checkpoint is saved, resume from the project directory:
 Resume only after checking that the previous process has stopped. Final test
 evaluation is a separate step; no accuracy result is available during setup.
 
-The post-training evaluator is also running in the background. It waits for
-successful completion, verifies frozen test hashes, and calls `src/train_report.py`
-once. Progress is in `results/post-training-status.json`; output is logged in
-`results/post-training.log` and `results/post-training-errors.log`. A successful
-evaluation produces `results/ppe_eval.md`, `results/ppe_eval.json`, and
-`results/confusion_matrix.png`, using measured values from Ultralytics' API.
-It refuses to overwrite an existing test report. If training fails or is
-interrupted, the watcher stops so the run can be inspected before resuming.
+### Restore after clearing local files
+
+The datasets and prepared splits are intentionally not stored in GitHub. The
+SH17 and D-Fire archives total about 17 GB and can be fetched again with the
+download script. After cloning this repository, recreate the PPE training split
+with:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-gpu-lock.txt
+.\.venv\Scripts\python.exe scripts/download_datasets.py --dataset sh17
+.\.venv\Scripts\python.exe src/dataset_tools.py merge --a data/sh17 --a-yaml config/sh17-classes.yaml --out data/ppe_public --rename safety-vest:vest --link-images
+.\.venv\Scripts\python.exe src/dataset_tools.py split --data data/ppe_public --out data/dataset_ppe --frozen data/splits_frozen/ppe --link-images
+New-Item -ItemType Directory -Force results/ppe_public_baseline/weights
+Copy-Item checkpoints/ppe-baseline-resume.pt results/ppe_public_baseline/weights/last.pt
+.\.venv\Scripts\python.exe src/train.py --resume results/ppe_public_baseline/weights/last.pt
+```
+
+This checkpoint is a partial training resume point, not a finished or validated
+model. The saved checkpoint reports three completed epochs. After training
+finishes, the existing evaluator will validate the untouched frozen test split.
+The original D-Fire data must also be downloaded and prepared before fire-model
+training. Dataset availability and download URLs may change over time.
+
+The optional post-training evaluator script waits for successful completion,
+verifies frozen test hashes, and calls `src/train_report.py` once. Start it after
+training has started with `python scripts/evaluate_when_ready.py` if you want
+automatic evaluation. A successful evaluation produces `results/ppe_eval.md`,
+`results/ppe_eval.json`, and `results/confusion_matrix.png`, using measured
+values from Ultralytics' API. It refuses to overwrite an existing test report.
+If training fails or is interrupted, inspect the run before resuming.
 
 ## D-Fire preparation
 

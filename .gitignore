@@ -21,3 +21,5 @@ weights/
 !.env.example
 *.log
 src/zones.json
+!checkpoints/
+!checkpoints/ppe-baseline-resume.pt

@@ -101,7 +101,7 @@ Rerun the preview with `python scripts/preview_ppe_split.py`.
 The live webcam observation in Phase 1 remains unverified; public-data
 preparation continued at the user's request without marking that gate complete.
 
-## Phase 3 — GPU verified; baseline training in progress
+## Phase 3 — GPU verified; baseline training paused
 
 - [x] Detect NVIDIA RTX 4060 Laptop GPU, 8 GB VRAM, and 16 GB system RAM.
 - [x] Discover installed PyTorch is CPU-only; start installing CUDA-enabled
@@ -111,7 +111,7 @@ preparation continued at the user's request without marking that gate complete.
 - [x] Separate training-only and test-evaluation dataset descriptors.
 - [x] Finish CUDA package installation and verify GPU matrix multiplication
   with torch 2.11.0+cu128; record `results/gpu-verification.json`.
-- [ ] Train: 640 pixels, batch 8, up to 60 epochs, patience 15, workers 2.
+- [ ] Finish training: 640 pixels, batch 8, up to 60 epochs, patience 15, workers 2.
 - [ ] Save successful best checkpoint as `models/ppe_best.pt`.
 - [ ] Evaluate the frozen test split once training is complete.
 - [x] Implement `src/train_report.py`: per-class API metrics, mAP@0.50 and
@@ -121,15 +121,19 @@ preparation continued at the user's request without marking that gate complete.
 - [x] Start `scripts/evaluate_when_ready.py` to evaluate once after successful
   training completion; it stops if training reports failure or interruption.
 
-Training continues on the RTX 4060; the latest Phase 7 check saw epoch 3 running.
-Training progress files contain validation metrics, not final test accuracy.
-The test report is not generated until training completes and test validation runs.
+Training stopped after three completed epochs. A later epoch had started, but no
+new resumable checkpoint was saved. The saved `last.pt` is preserved at
+`checkpoints/ppe-baseline-resume.pt` and is backed up in GitHub. The prior
+controller did not capture a useful underlying failure detail. This remains an
+unfinished baseline, not a trained final model. No test report or test accuracy
+is available.
 
 Controller stages are recorded in `results/baseline-setup.json`; epoch progress
 will appear in `results/ppe-training-status.json` once training begins. Logs:
 `results/public-baseline.log` and `results/public-baseline-errors.log`.
-No final test accuracy numbers have been measured or reported yet. Do not launch a
-second controller while the recorded process is active.
+No final test accuracy numbers have been measured or reported. Before resuming,
+recreate the data split and follow the restore instructions in README.md. Do not
+launch a second controller while another training process is active.
 The evaluation watcher has its own `results/post-training.pid`,
 `results/post-training-status.json`, and `results/post-training.log`.
 Successful outputs will be `results/ppe_eval.md`, `results/ppe_eval.json`, and

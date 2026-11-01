@@ -196,6 +196,16 @@ Copy-Item checkpoints/ppe-baseline-resume.pt results/ppe_public_baseline/weights
 .\.venv\Scripts\python.exe src/train.py --resume results/ppe_public_baseline/weights/last.pt
 ```
 
+Leave that training process running. In three other PowerShell terminals, start
+the evaluator, fire queue, and artifact publisher so the later steps proceed in
+order and final weights/reports reach GitHub:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/evaluate_when_ready.py
+.\.venv\Scripts\python.exe scripts/run_fire_after_ppe.py
+.\.venv\Scripts\python.exe scripts/publish_after_training.py
+```
+
 This checkpoint is a partial training resume point, not a finished or validated
 model. The saved checkpoint reports three completed epochs. After training
 finishes, the existing evaluator will validate the untouched frozen test split.

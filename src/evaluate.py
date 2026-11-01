@@ -61,6 +61,14 @@ def write_final_numbers(machine):
                   ""]
     else:
         lines += ["## Expert scenarios", "", "Not measured: needs expert-reviewed scenario rows.", ""]
+    risk_path = ROOT / "results/risk-verification.json"
+    if risk_path.is_file():
+        data = json.loads(risk_path.read_text(encoding="utf-8"))
+        lines += ["## Fuzzy logic consistency", "",
+                  f"Monotonic grid edges checked: {data['monotonic_grid_edges_checked']}",
+                  f"Continuous increasing-input comparisons: {data['continuous_increase_comparisons']}",
+                  f"Self-check state: {data['state']}",
+                  "This verifies rule consistency, not agreement with a safety expert.", ""]
     (ROOT / "results/final_numbers.md").write_text("\n".join(lines), encoding="utf-8")
 
 
